@@ -40,10 +40,17 @@ set(INCLUDES
     include
 )
 
+# Toggles whether or not we want a console rerun cmake with -DHIDE_CONSOLE={ON or OFF}
+option(HIDE_CONSOLE "Build GUI app without console window on Windows" OFF)
+
 # -------------------------
 # Add your executable
 # -------------------------
-add_executable(${EXE_NAME} ${SOURCES})
+if(HIDE_CONSOLE)
+    add_executable(${EXE_NAME} WIN32 ${SOURCES})
+else()
+    add_executable(${EXE_NAME} ${SOURCES})
+endif()
 
 # Include directories
 target_include_directories(${EXE_NAME} PUBLIC
