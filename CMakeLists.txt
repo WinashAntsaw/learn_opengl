@@ -32,6 +32,8 @@ set (EXE_NAME my_game)
 
 # Set source Files
 set(SOURCES
+    src/render.c
+    src/shader_utils.c
     src/main.c
 )
 
@@ -57,6 +59,7 @@ target_include_directories(${EXE_NAME} PUBLIC
     ${INCLUDES}
     extern/glad/include
     extern/glfw/include
+    extern/cglm
 )
 
 # Link libraries
