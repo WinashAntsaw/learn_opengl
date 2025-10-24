@@ -4,6 +4,7 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <camera.h>
+#include <stdbool.h>
 
 
 // Struct to act as the main window of the game
@@ -11,8 +12,8 @@ typedef struct _game_window_ {
     GLFWwindow* glfw_window;
     GLuint shader_program;
     double update_time;
-    int fps;
-    float aspect;
+    int fps, width, height;
+    bool cursor_disabled;
     Camera *camera;
 } GameWindow;
 

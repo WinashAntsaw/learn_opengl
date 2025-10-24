@@ -4,19 +4,39 @@
 #include <time.h>
 #include <shader_utils.h>
 #include <stdbool.h>
+#include <camera.h>
 
 static void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
     glViewport(0, 0, width, height);
 
     GameWindow *parent = glfwGetWindowUserPointer(window);
 
-    parent->aspect = (float) width / (float) height;
+    parent->width = width;
+    parent->height = height;
+    camera_resize_perspective(parent->camera, (float) width / (float) height);
 }
 
-void processInput(GLFWwindow *window) {
+void process_input(GameWindow *game_window) {
+
+    GLFWwindow *window = game_window->glfw_window;
+    float theta = 0.01;
+    float delta = 0.01;
+
+    bool should_update_view = true;
 
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
-        glfwSetWindowShouldClose(window, true);
+        //glfwSetWindowShouldClose(window, true);
+
+        if (game_window->cursor_disabled == true) {
+            game_window->cursor_disabled = false;
+            glfwSetCursorPos(window, game_window->width / 2, game_window->height / 2);
+            glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+        } else {
+            glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+            glfwSetCursorPos(window, 0, 0);
+            game_window->cursor_disabled = true;
+        }
+        
     }
 
     if (glfwGetKey(window, GLFW_KEY_TAB) == GLFW_PRESS) {
@@ -24,6 +44,73 @@ void processInput(GLFWwindow *window) {
     } else if (glfwGetKey(window, GLFW_KEY_TAB) == GLFW_RELEASE) {
         glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
     }
+
+
+    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
+        camera_move(game_window->camera, Z_AXIS, delta);
+        should_update_view = true;
+    }
+    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) {
+        camera_move(game_window->camera, Z_AXIS, -delta);
+        should_update_view = true;
+    }
+
+    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) {
+        camera_move(game_window->camera, X_AXIS, delta);
+        should_update_view = true;
+    }
+    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) {
+        camera_move(game_window->camera, X_AXIS, -delta);
+        should_update_view = true;
+    }
+
+    if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) {
+        camera_move(game_window->camera, Y_AXIS, delta);
+        should_update_view = true;
+    }
+    if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS) {
+        camera_move(game_window->camera, Y_AXIS, -delta);
+        should_update_view = true;
+    }
+    
+
+    if (should_update_view) {
+        camera_update_view(game_window->camera);
+        camera_update_transform(game_window->camera);
+    }
+
+    if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS) {
+        if (glfwGetKey(window, GLFW_KEY_BACKSPACE) == GLFW_PRESS) {
+            glfwSetWindowShouldClose(window, true);
+        }
+    }
+    
+}
+
+void cursor_position_callback(GLFWwindow* window, double xpos, double ypos) {
+
+    GameWindow *parent = glfwGetWindowUserPointer(window);
+
+    if (parent->cursor_disabled) {
+        Camera *camera = parent->camera;
+
+        float global_sens = 0.01;
+
+        float yaw_delta = global_sens * xpos;
+        float pitch_delta = global_sens * ypos;
+
+        //printf("\rPitch Delta: %5.2f, Yaw Delta: %5.2f", pitch_delta, yaw_delta);
+
+        camera_rotate(camera, X_AXIS, -pitch_delta);
+        camera_rotate(camera, Y_AXIS, -yaw_delta);
+
+        camera_update_view(camera);
+        camera_update_transform(camera);
+
+        glfwSetCursorPos(window, 0.0f, 0.0f);
+    }
+    
+
 }
 
 GameWindow *init_GameWindow(int width, int height, double update_time, int fps, char *v_path, char *f_path) {
@@ -34,7 +121,7 @@ GameWindow *init_GameWindow(int width, int height, double update_time, int fps, 
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-    GLFWwindow* window = glfwCreateWindow(800, 600, "LearnOpenGL", NULL, NULL);
+    GLFWwindow* window = glfwCreateWindow(width, height, "LearnOpenGL", NULL, NULL);
     if (window == NULL) {
         fprintf(stderr, "Failed to create GLFW window\n");
         glfwTerminate();
@@ -42,6 +129,8 @@ GameWindow *init_GameWindow(int width, int height, double update_time, int fps, 
     }
 
     glfwMakeContextCurrent(window);
+    
+
 
     // init and setup glad 
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
@@ -68,6 +157,9 @@ GameWindow *init_GameWindow(int width, int height, double update_time, int fps, 
     output->fps = fps;
     output->update_time = update_time;
     output->shader_program = init_shader_program(v_path, f_path);
+    output->cursor_disabled = true;
+    output->width = width;
+    output->height = height;
 
     if (output->shader_program == 0) {
         fprintf(stderr, "Error with initializing shaders");
@@ -77,7 +169,7 @@ GameWindow *init_GameWindow(int width, int height, double update_time, int fps, 
     }
 
     // Now that we've guaranteed a working shader program, initialize and bind the camera to it
-    output->camera = init_camera(output->shader_program);
+    output->camera = init_camera(output->shader_program, "transform", (float) width / (float) height);
     if (output->camera == NULL) {
         fprintf(stderr, "Error initializing camera");
         free(output);
@@ -85,10 +177,19 @@ GameWindow *init_GameWindow(int width, int height, double update_time, int fps, 
         return NULL;
     }
 
-    output->aspect = (float) width / (float) height;
 
-    // finally, set the glfw window to contain a pointer to its parent Game Window
+    // set the glfw window to contain a pointer to its parent Game Window
     glfwSetWindowUserPointer(output->glfw_window, output);
+
+    // set up the cursor modes and callback
+    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+
+    if (glfwRawMouseMotionSupported()) {
+        glfwSetInputMode(window, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
+    }
+
+    glfwSetCursorPos(window, 0, 0);
+    glfwSetCursorPosCallback(window, cursor_position_callback);
 
     return output;
 
@@ -136,7 +237,7 @@ void init_render_loop(GameWindow *window, void (*update)(void *input)) {
     
     while (!glfwWindowShouldClose(window->glfw_window)) {
         // input
-        process_input(window->glfw_window);
+        process_input(window);
 
         //rendering commands
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
@@ -144,7 +245,7 @@ void init_render_loop(GameWindow *window, void (*update)(void *input)) {
 
         // drawing our first triangle
         glUseProgram(window->shader_program);
-
+        //camera_update_transform(window->camera);
         glBindVertexArray(VAO); // seeing as we only have a single VAO there's no need to bind it every time, but we'll do so to keep things a bit more organized
         //glDrawArrays(GL_TRIANGLES, 0, 6);
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);

@@ -8,8 +8,9 @@ typedef struct _camera_ {
     float pitch;
     float yaw;
     float roll;
-    float fov, near, far;
-    mat4 transform;
+    float fov, near, far, aspect;
+    mat4 view;
+    mat4 proj;
     GLint transform_loc;
 } Camera;
 
@@ -19,16 +20,18 @@ typedef enum {
     Z_AXIS
 } Axis;
 
-Camera *init_camera(GLuint shader_program);
+Camera *init_camera(GLuint shader_program, const char const *transform_var_name, float aspect);
 
-void global_rotate(Camera *camera, Axis axis, float theta);
+void camera_update_view(Camera *camera);
 
-void global_translate(Camera *camera, Axis axis, float delta);
+void camera_update_projection(Camera * camera);
 
-void local_rotate(Camera *camera, Axis axis, float theta);
+void camera_resize_perspective(Camera *camera, float aspect);
 
-void local_translate(Camera *camera, Axis axis, float theta);
+void camera_update_transform(Camera *camera);
 
-void update_view(Camera *camera);
+void camera_rotate(Camera *camera, Axis axis, float theta);
+
+void camera_move(Camera *camera, Axis axis, float delta);
 
 #endif
